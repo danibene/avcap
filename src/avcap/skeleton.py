@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+
 import cv2
 
 from avcap import __version__
@@ -24,33 +25,35 @@ def capture_video(duration, output_file):
     if not cap.isOpened():
         _logger.error("Could not open video device")
         return
-    
+
     # Define the codec and create VideoWriter object
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    fourcc = cv2.VideoWriter_fourcc(*"XVID")
     out = cv2.VideoWriter(output_file, fourcc, 20.0, (640, 480))
-    
+
     start_time = cv2.getTickCount()
     while True:
         ret, frame = cap.read()
         if not ret:
             _logger.error("Failed to capture frame")
             break
-        
+
         out.write(frame)
-        cv2.imshow('frame', frame)
-        
+        cv2.imshow("frame", frame)
+
         # Stop recording after 'duration' seconds
         if (cv2.getTickCount() - start_time) / cv2.getTickFrequency() > duration:
             break
-        
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     cap.release()
     out.release()
     cv2.destroyAllWindows()
 
+
 # Other parts of the skeleton remain unchanged
+
 
 def parse_args(args):
     """Parse command line parameters for video capture
@@ -59,11 +62,36 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(description="Capture video from webcam")
     parser.add_argument("--version", action="version", version=f"avcap {__version__}")
-    parser.add_argument(dest="duration", help="Duration of the video capture in seconds", type=int, metavar="SECONDS")
-    parser.add_argument(dest="output_file", help="Path to the output video file", type=str, metavar="FILE")
-    parser.add_argument("-v", "--verbose", dest="loglevel", help="set loglevel to INFO", action="store_const", const=logging.INFO)
-    parser.add_argument("-vv", "--very-verbose", dest="loglevel", help="set loglevel to DEBUG", action="store_const", const=logging.DEBUG)
+    parser.add_argument(
+        dest="duration",
+        help="Duration of the video capture in seconds",
+        type=int,
+        metavar="SECONDS",
+    )
+    parser.add_argument(
+        dest="output_file",
+        help="Path to the output video file",
+        type=str,
+        metavar="FILE",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="loglevel",
+        help="set loglevel to INFO",
+        action="store_const",
+        const=logging.INFO,
+    )
+    parser.add_argument(
+        "-vv",
+        "--very-verbose",
+        dest="loglevel",
+        help="set loglevel to DEBUG",
+        action="store_const",
+        const=logging.DEBUG,
+    )
     return parser.parse_args(args)
+
 
 def setup_logging(loglevel):
     """Setup basic logging
@@ -84,6 +112,7 @@ def main(args):
     _logger.debug("Starting video capture...")
     capture_video(args.duration, args.output_file)
     _logger.info("Video capture ends here")
+
 
 def run():
     """Calls :func:`main` passing the CLI arguments extracted from :obj:`sys.argv`

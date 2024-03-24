@@ -1,6 +1,4 @@
-import pytest
-
-from avcap.skeleton import fib, main
+from avcap.skeleton import main
 
 __author__ = "danibene"
 __copyright__ = "danibene"
