@@ -3,6 +3,7 @@ import logging
 import sys
 
 import cv2
+from moviepy.editor import VideoFileClip
 
 from avcap import __version__
 
@@ -26,41 +27,60 @@ def capture_video(duration, output_file):
         _logger.error("Could not open video device")
         return
 
-    # Define the codec and create VideoWriter object
-    fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    out = cv2.VideoWriter(output_file, fourcc, 20.0, (640, 480))
+    # Determine the video width and height by querying the capture device
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    # Attempt using H264 codec; you might need to adjust this based on your system's support
+    # For Windows, you might use 'H264' or 'XVID' and for macOS, 'avc1' or 'mp4v' could work
+    fourcc = cv2.VideoWriter_fourcc(
+        *"avc1"
+    )  # Try using 'avc1' or 'h264' instead of 'XVID'
+    out = cv2.VideoWriter(
+        output_file, fourcc, 20.0, (width, height), True
+    )  # Ensure isColor=True for color videos
 
     start_time = cv2.getTickCount()
     while True:
         ret, frame = cap.read()
         if not ret:
             _logger.error("Failed to capture frame")
-            break
+            return
 
-        out.write(frame)
-        cv2.imshow("frame", frame)
+        out.write(frame)  # Save the captured frame
+        cv2.imshow("frame", frame)  # Display the frame
 
         # Stop recording after 'duration' seconds
         if (cv2.getTickCount() - start_time) / cv2.getTickFrequency() > duration:
             break
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        if cv2.waitKey(1) & 0xFF == ord("q"):  # Allow quitting with the 'q' key
             break
 
-    cap.release()
-    out.release()
-    cv2.destroyAllWindows()
+    cap.release()  # Release the webcam
+    out.release()  # Close the file being written to
+    cv2.destroyAllWindows()  # Close the window showing the frame
 
 
-# Other parts of the skeleton remain unchanged
+def process_video_with_moviepy(input_filepath, output_filepath):
+    """
+    Processes a video file using moviepy to rewrite it with specific encoding settings.
+
+    Args:
+      input_filepath (str): Path to the input video file.
+      output_filepath (str): Path to the output video file.
+    """
+    video_clip = VideoFileClip(input_filepath)
+    video_clip.write_videofile(
+        output_filepath, fps=24, codec="libx264", audio_codec="aac"
+    )
 
 
 def parse_args(args):
-    """Parse command line parameters for video capture
-
-    This is adjusted for video capturing parameters.
-    """
-    parser = argparse.ArgumentParser(description="Capture video from webcam")
+    """Parse command line parameters for video capture."""
+    parser = argparse.ArgumentParser(
+        description="Capture video from webcam and process it with moviepy"
+    )
     parser.add_argument("--version", action="version", version=f"avcap {__version__}")
     parser.add_argument(
         dest="duration",
@@ -94,11 +114,7 @@ def parse_args(args):
 
 
 def setup_logging(loglevel):
-    """Setup basic logging
-
-    Args:
-      loglevel (int): minimum loglevel for emitting messages
-    """
+    """Setup basic logging"""
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
     logging.basicConfig(
         level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
@@ -106,25 +122,20 @@ def setup_logging(loglevel):
 
 
 def main(args):
-    """Main function adjusted for capturing video from the webcam."""
+    """Main function adjusted for capturing and processing video."""
     args = parse_args(args)
     setup_logging(args.loglevel)
     _logger.debug("Starting video capture...")
     capture_video(args.duration, args.output_file)
-    _logger.info("Video capture ends here")
+    _logger.info("Video capture complete. Processing video with moviepy...")
+    process_video_with_moviepy(args.output_file, "processed_" + args.output_file)
+    _logger.info("Video processing complete")
 
 
 def run():
-    """Calls :func:`main` passing the CLI arguments extracted from :obj:`sys.argv`
-
-    This function can be used as entry point to create console scripts with setuptools.
-    """
+    """Entry point for the script."""
     main(sys.argv[1:])
 
 
 if __name__ == "__main__":
-    # ^  This is a guard statement that will prevent the following code from
-    #    being executed in the case someone imports this file instead of
-    #    executing it as a script.
-    #    https://docs.python.org/3/library/__main__.html
     run()
