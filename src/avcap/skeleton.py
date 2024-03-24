@@ -1,9 +1,12 @@
 import argparse
 import logging
 import sys
+import wave
 
 import cv2
-from moviepy.editor import VideoFileClip
+import numpy as np
+import sounddevice as sd
+from moviepy.editor import AudioFileClip, VideoFileClip
 
 from avcap import __version__
 
@@ -15,63 +18,65 @@ _logger = logging.getLogger(__name__)
 
 
 def capture_video(duration, output_file):
-    """
-    Captures video from the default webcam and saves it to a file.
-
-    Args:
-      duration (int): Duration of the video capture in seconds.
-      output_file (str): Path to the output file where the video will be saved.
-    """
     cap = cv2.VideoCapture(0)  # 0 is usually the default webcam
     if not cap.isOpened():
         _logger.error("Could not open video device")
         return
 
-    # Determine the video width and height by querying the capture device
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fourcc = cv2.VideoWriter_fourcc(*"avc1")
+    out = cv2.VideoWriter(output_file, fourcc, 20.0, (width, height), True)
 
-    # Attempt using H264 codec; you might need to adjust this based on your system's support
-    # For Windows, you might use 'H264' or 'XVID' and for macOS, 'avc1' or 'mp4v' could work
-    fourcc = cv2.VideoWriter_fourcc(
-        *"avc1"
-    )  # Try using 'avc1' or 'h264' instead of 'XVID'
-    out = cv2.VideoWriter(
-        output_file, fourcc, 20.0, (width, height), True
-    )  # Ensure isColor=True for color videos
+    # Audio recording setup
+    channels = 1
+    rate = 44100
+    audio_output_file = "temp_audio.wav"
 
-    start_time = cv2.getTickCount()
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            _logger.error("Failed to capture frame")
-            return
+    # Prepare to record audio in a separate thread
+    audio_frames = []
 
-        out.write(frame)  # Save the captured frame
-        cv2.imshow("frame", frame)  # Display the frame
+    def callback(indata, frames, time, status):
+        audio_frames.append(indata.copy())
 
-        # Stop recording after 'duration' seconds
-        if (cv2.getTickCount() - start_time) / cv2.getTickFrequency() > duration:
-            break
+    # Start audio recording
+    with sd.InputStream(samplerate=rate, channels=channels, callback=callback):
+        start_time = cv2.getTickCount()
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                _logger.error("Failed to capture frame")
+                break
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):  # Allow quitting with the 'q' key
-            break
+            out.write(frame)
+            cv2.imshow("frame", frame)
 
-    cap.release()  # Release the webcam
-    out.release()  # Close the file being written to
-    cv2.destroyAllWindows()  # Close the window showing the frame
+            if (cv2.getTickCount() - start_time) / cv2.getTickFrequency() > duration:
+                break
+
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+
+    cap.release()
+    out.release()
+    cv2.destroyAllWindows()
+
+    # Save the recorded audio to a file
+    audio_data = np.concatenate(audio_frames, axis=0)
+    with wave.open(audio_output_file, "wb") as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(2)  # Assuming 16 bits/sample, change if different
+        wf.setframerate(rate)
+        wf.writeframes((audio_data * 32767).astype(np.int16).tobytes())
+
+    return audio_output_file
 
 
-def process_video_with_moviepy(input_filepath, output_filepath):
-    """
-    Processes a video file using moviepy to rewrite it with specific encoding settings.
-
-    Args:
-      input_filepath (str): Path to the input video file.
-      output_filepath (str): Path to the output video file.
-    """
+def process_video_with_moviepy(input_filepath, output_filepath, audio_input):
     video_clip = VideoFileClip(input_filepath)
-    video_clip.write_videofile(
+    audio_clip = AudioFileClip(audio_input)
+    final_clip = video_clip.set_audio(audio_clip)
+    final_clip.write_videofile(
         output_filepath, fps=24, codec="libx264", audio_codec="aac"
     )
 
@@ -122,13 +127,14 @@ def setup_logging(loglevel):
 
 
 def main(args):
-    """Main function adjusted for capturing and processing video."""
     args = parse_args(args)
     setup_logging(args.loglevel)
     _logger.debug("Starting video capture...")
-    capture_video(args.duration, args.output_file)
+    audio_output = capture_video(args.duration, args.output_file)
     _logger.info("Video capture complete. Processing video with moviepy...")
-    process_video_with_moviepy(args.output_file, "processed_" + args.output_file)
+    process_video_with_moviepy(
+        args.output_file, "processed_" + args.output_file, audio_output
+    )
     _logger.info("Video processing complete")
 
 
