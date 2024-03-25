@@ -31,21 +31,21 @@ def test_generate_filename() -> None:
     filename_parent = Path(filename).parent
     filename_name = Path(filename).name
     assert filename_parent.name == "test"
-    assert filename_name.startswith("test/preprocessed_test_")
+    assert filename_name.startswith("preprocessed_test_")
     assert filename.endswith(".avi")
 
     filename = generate_filename("test/test")
     filename_parent = Path(filename).parent
     filename_name = Path(filename).name
     assert filename_parent.name == "test"
-    assert filename_name.startswith("test/preprocessed_test_")
+    assert filename_name.startswith("preprocessed_test_")
     assert filename.endswith(".mp4")
 
     filename = generate_filename("test/test.mp4")
     filename_parent = Path(filename).parent
     filename_name = Path(filename).name
     assert filename_parent.name == "test"
-    assert filename_name.startswith("test/preprocessed_test_")
+    assert filename_name.startswith("preprocessed_test_")
     assert filename.endswith(".mp4")
 
 
