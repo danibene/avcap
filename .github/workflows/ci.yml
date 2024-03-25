@@ -82,7 +82,7 @@ jobs:
         run: >-
           if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
             sudo apt-get install -y portaudio19-dev python-all-dev
-          fi
+          fi &&
           pipx run --python '${{ steps.setup-python.outputs.python-path }}'
           tox --installpkg '${{ needs.prepare.outputs.wheel-distribution }}'
           -- -rFEx --durations 10 --color yes  # pytest args
