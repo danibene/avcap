@@ -76,13 +76,16 @@ jobs:
       - name: Retrieve pre-built distribution files
         uses: actions/download-artifact@v3
         with: {name: python-distribution-files, path: dist/}
-      - name: Run tests
+      - name: Install conditional dependencies
+        shell: bash
         # If ubuntu-latest is used, we need to run apt-get install portaudio19-dev python-all-dev
         # to install the required dependencies for the soundfile package.
         run: >-
           if [ "${{ matrix.platform }}" = "ubuntu-latest" ]; then
             sudo apt-get install -y portaudio19-dev python-all-dev
-          fi &&
+          fi
+      - name: Run tests
+        run: >-
           pipx run --python '${{ steps.setup-python.outputs.python-path }}'
           tox --installpkg '${{ needs.prepare.outputs.wheel-distribution }}'
           -- -rFEx --durations 10 --color yes  # pytest args
