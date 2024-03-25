@@ -42,6 +42,6 @@ def test_main(capsys: CaptureFixture) -> None:
     """CLI Tests"""
     # capsys is a pytest fixture that allows asserts against stdout/stderr
     # https://docs.pytest.org/en/stable/capture.html
-    main(["10"])
+    main(["-d", "15"])
     captured = capsys.readouterr()
     assert "Video capture ends here" in captured.out
