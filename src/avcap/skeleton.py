@@ -1,7 +1,10 @@
 import argparse
 import logging
+import os
 import sys
 import wave
+from datetime import datetime
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -16,6 +19,25 @@ __license__ = "MIT"
 
 _logger = logging.getLogger(__name__)
 
+FPS = 24
+DEFAULT_EXTENSION = ".mp4"
+PREFIX = "preprocessed_"
+
+
+def generate_filename(base_name):
+    """Generate a filename based on the current date and time."""
+    datetime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    if not base_name:
+        filename = PREFIX + datetime_str + DEFAULT_EXTENSION
+    else:
+        if not Path(base_name).suffix:
+            extension = DEFAULT_EXTENSION
+        else:
+            extension = Path(base_name).suffix
+        filename = PREFIX + Path(base_name).stem + "_" + datetime_str + extension
+    return filename
+
 
 def capture_video(duration, output_file):
     cap = cv2.VideoCapture(0)  # 0 is usually the default webcam
@@ -26,12 +48,16 @@ def capture_video(duration, output_file):
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fourcc = cv2.VideoWriter_fourcc(*"avc1")
-    out = cv2.VideoWriter(output_file, fourcc, 20.0, (width, height), True)
+    video_filename = generate_filename(output_file)
+    out = cv2.VideoWriter(video_filename, fourcc, float(FPS), (width, height), True)
 
     # Audio recording setup
     channels = 1
     rate = 44100
-    audio_output_file = "temp_audio.wav"
+    audio_filename = video_filename.replace(Path(video_filename).suffix, ".wav")
+    if os.path.exists(audio_filename):
+        _logger.error(f"{audio_filename} already exists. Exiting to avoid data loss.")
+        return
 
     # Prepare to record audio in a separate thread
     audio_frames = []
@@ -63,22 +89,24 @@ def capture_video(duration, output_file):
 
     # Save the recorded audio to a file
     audio_data = np.concatenate(audio_frames, axis=0)
-    with wave.open(audio_output_file, "wb") as wf:
+    with wave.open(audio_filename, "wb") as wf:
         wf.setnchannels(channels)
         wf.setsampwidth(2)  # Assuming 16 bits/sample, change if different
         wf.setframerate(rate)
         wf.writeframes((audio_data * 32767).astype(np.int16).tobytes())
 
-    return audio_output_file
+    return video_filename, audio_filename
 
 
-def process_video_with_moviepy(input_filepath, output_filepath, audio_input):
+def process_video_with_moviepy(input_filepath, audio_input):
     video_clip = VideoFileClip(input_filepath)
     audio_clip = AudioFileClip(audio_input)
     final_clip = video_clip.set_audio(audio_clip)
+    processed_filepath = str(input_filepath)[len(PREFIX) :]
     final_clip.write_videofile(
-        output_filepath, fps=24, codec="libx264", audio_codec="aac"
+        processed_filepath, fps=FPS, codec="libx264", audio_codec="aac"
     )
+    return processed_filepath
 
 
 def parse_args(args):
@@ -88,16 +116,22 @@ def parse_args(args):
     )
     parser.add_argument("--version", action="version", version=f"avcap {__version__}")
     parser.add_argument(
+        "-d",
+        "--duration",
         dest="duration",
         help="Duration of the video capture in seconds",
         type=int,
         metavar="SECONDS",
+        default=10,
     )
     parser.add_argument(
+        "-o",
+        "--output",
         dest="output_file",
         help="Path to the output video file",
         type=str,
         metavar="FILE",
+        default="",
     )
     parser.add_argument(
         "-v",
@@ -130,12 +164,16 @@ def main(args):
     args = parse_args(args)
     setup_logging(args.loglevel)
     _logger.debug("Starting video capture...")
-    audio_output = capture_video(args.duration, args.output_file)
+    video_output, audio_output = capture_video(args.duration, args.output_file)
     _logger.info("Video capture complete. Processing video with moviepy...")
-    process_video_with_moviepy(
-        args.output_file, "processed_" + args.output_file, audio_output
-    )
-    _logger.info("Video processing complete")
+    processed_filepath = process_video_with_moviepy(video_output, audio_output)
+    _logger.info("Video processing complete. Cleaning up temporary files...")
+    # Cleanup temporary files
+    if os.path.exists(video_output):
+        os.remove(video_output)
+    if os.path.exists(audio_output):
+        os.remove(audio_output)
+    _logger.info(f"Final video is available at {processed_filepath}")
 
 
 def run():
