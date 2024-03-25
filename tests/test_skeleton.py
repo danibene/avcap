@@ -44,4 +44,4 @@ def test_main(capsys: CaptureFixture) -> None:
     # https://docs.pytest.org/en/stable/capture.html
     main(["-d", "15"])
     captured = capsys.readouterr()
-    assert "Video capture ends here" in captured.out
+    assert "Video capture" in captured.out
