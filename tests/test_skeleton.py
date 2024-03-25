@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pytest import CaptureFixture
 
 from avcap.skeleton import generate_filename, main
@@ -26,15 +28,24 @@ def test_generate_filename() -> None:
     assert filename.endswith(".avi")
 
     filename = generate_filename("test/test.avi")
-    assert filename.startswith("test/preprocessed_test_")
+    filename_parent = Path(filename).parent
+    filename_name = Path(filename).name
+    assert filename_parent.name == "test"
+    assert filename_name.startswith("test/preprocessed_test_")
     assert filename.endswith(".avi")
 
     filename = generate_filename("test/test")
-    assert filename.startswith("test/preprocessed_test_")
+    filename_parent = Path(filename).parent
+    filename_name = Path(filename).name
+    assert filename_parent.name == "test"
+    assert filename_name.startswith("test/preprocessed_test_")
     assert filename.endswith(".mp4")
 
     filename = generate_filename("test/test.mp4")
-    assert filename.startswith("test/preprocessed_test_")
+    filename_parent = Path(filename).parent
+    filename_name = Path(filename).name
+    assert filename_parent.name == "test"
+    assert filename_name.startswith("test/preprocessed_test_")
     assert filename.endswith(".mp4")
 
 
