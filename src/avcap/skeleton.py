@@ -5,6 +5,7 @@ import sys
 import wave
 from datetime import datetime
 from pathlib import Path
+from typing import Optional, Tuple
 
 import cv2
 import numpy as np
@@ -24,7 +25,7 @@ DEFAULT_EXTENSION = ".mp4"
 PREFIX = "preprocessed_"
 
 
-def generate_filename(base_name):
+def generate_filename(base_name: Optional[str] = None) -> str:
     """Generate a filename based on the current date and time."""
     datetime_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -35,15 +36,26 @@ def generate_filename(base_name):
             extension = DEFAULT_EXTENSION
         else:
             extension = Path(base_name).suffix
-        filename = PREFIX + Path(base_name).stem + "_" + datetime_str + extension
+        parent_path_str = str(Path(base_name).parent)
+        if parent_path_str == ".":
+            filename = PREFIX + Path(base_name).stem + "_" + datetime_str + extension
+        else:
+            filename = (
+                parent_path_str
+                + PREFIX
+                + Path(base_name).stem
+                + "_"
+                + datetime_str
+                + extension
+            )
     return filename
 
 
-def capture_video(duration, output_file):
+def capture_video(duration: int, output_file: str) -> Tuple[str, str]:
     cap = cv2.VideoCapture(0)  # 0 is usually the default webcam
     if not cap.isOpened():
         _logger.error("Could not open video device")
-        return
+        return "", ""
 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -57,12 +69,14 @@ def capture_video(duration, output_file):
     audio_filename = video_filename.replace(Path(video_filename).suffix, ".wav")
     if os.path.exists(audio_filename):
         _logger.error(f"{audio_filename} already exists. Exiting to avoid data loss.")
-        return
+        return "", ""
 
     # Prepare to record audio in a separate thread
     audio_frames = []
 
-    def callback(indata, frames, time, status):
+    def callback(
+        indata: np.ndarray, frames: int, time: sd.CallbackTime, status: sd.CallbackFlags
+    ) -> None:
         audio_frames.append(indata.copy())
 
     # Start audio recording
@@ -98,18 +112,19 @@ def capture_video(duration, output_file):
     return video_filename, audio_filename
 
 
-def process_video_with_moviepy(input_filepath, audio_input):
+def process_video_with_moviepy(input_filepath: str, audio_input: str) -> str:
     video_clip = VideoFileClip(input_filepath)
     audio_clip = AudioFileClip(audio_input)
     final_clip = video_clip.set_audio(audio_clip)
-    processed_filepath = str(input_filepath)[len(PREFIX) :]
+    processed_filename = Path(input_filepath).name[len(PREFIX) :]
+    processed_filepath = str(Path(input_filepath).parent / processed_filename)
     final_clip.write_videofile(
         processed_filepath, fps=FPS, codec="libx264", audio_codec="aac"
     )
     return processed_filepath
 
 
-def parse_args(args):
+def parse_args(args: list) -> argparse.Namespace:
     """Parse command line parameters for video capture."""
     parser = argparse.ArgumentParser(
         description="Capture video from webcam and process it with moviepy"
@@ -152,7 +167,7 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def setup_logging(loglevel):
+def setup_logging(loglevel: int) -> None:
     """Setup basic logging"""
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
     logging.basicConfig(
@@ -160,11 +175,16 @@ def setup_logging(loglevel):
     )
 
 
-def main(args):
-    args = parse_args(args)
-    setup_logging(args.loglevel)
+def main(args: list) -> None:
+    parsed_args = parse_args(args)
+    setup_logging(parsed_args.loglevel)
     _logger.debug("Starting video capture...")
-    video_output, audio_output = capture_video(args.duration, args.output_file)
+    video_output, audio_output = capture_video(
+        parsed_args.duration, parsed_args.output_file
+    )
+    if not video_output or not audio_output:
+        _logger.error("Video capture failed. Exiting...")
+        return
     _logger.info("Video capture complete. Processing video with moviepy...")
     processed_filepath = process_video_with_moviepy(video_output, audio_output)
     _logger.info("Video processing complete. Cleaning up temporary files...")
@@ -176,7 +196,7 @@ def main(args):
     _logger.info(f"Final video is available at {processed_filepath}")
 
 
-def run():
+def run() -> None:
     """Entry point for the script."""
     main(sys.argv[1:])
 
