@@ -40,13 +40,11 @@ def generate_filename(base_name: Optional[str] = None) -> str:
         if parent_path_str == ".":
             filename = PREFIX + Path(base_name).stem + "_" + datetime_str + extension
         else:
-            filename = (
-                parent_path_str
-                + PREFIX
-                + Path(base_name).stem
-                + "_"
-                + datetime_str
-                + extension
+            filename = str(
+                Path(
+                    parent_path_str,
+                    PREFIX + Path(base_name).stem + "_" + datetime_str + extension,
+                )
             )
     return filename
 
