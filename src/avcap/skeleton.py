@@ -5,7 +5,7 @@ import sys
 import wave
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -57,7 +57,7 @@ def capture_video(duration: int, output_file: str) -> Tuple[str, str]:
 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fourcc = cv2.VideoWriter_fourcc(*"avc1")
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     video_filename = generate_filename(output_file)
     out = cv2.VideoWriter(video_filename, fourcc, float(FPS), (width, height), True)
 
@@ -73,7 +73,7 @@ def capture_video(duration: int, output_file: str) -> Tuple[str, str]:
     audio_frames = []
 
     def callback(
-        indata: np.ndarray, frames: int, time: sd.CallbackTime, status: sd.CallbackFlags
+        indata: np.ndarray, frames: int, time: Any, status: sd.CallbackFlags
     ) -> None:
         audio_frames.append(indata.copy())
 
