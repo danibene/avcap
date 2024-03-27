@@ -63,7 +63,8 @@ def capture_video(duration: int, output_file: str) -> Tuple[str, str]:
 
     # Audio recording setup
     channels = 1
-    rate = 44100
+    # Automatically set the sample rate to the one your device supports
+    rate = sd.query_devices(None, "input")["default_samplerate"]
     audio_filename = video_filename.replace(Path(video_filename).suffix, ".wav")
     if os.path.exists(audio_filename):
         _logger.error(f"{audio_filename} already exists. Exiting to avoid data loss.")
