@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Optional, Tuple
 
 import cv2
+import ffmpeg
 import numpy as np
 import sounddevice as sd
 from moviepy.editor import AudioFileClip, VideoFileClip
@@ -111,16 +112,38 @@ def capture_video(duration: int, output_file: str) -> Tuple[str, str]:
     return video_filename, audio_filename
 
 
-def process_video_with_moviepy(input_filepath: str, audio_input: str) -> str:
+def generate_final_filename(input_filepath: str) -> str:
+    processed_filename = Path(input_filepath).name[len(PREFIX) :]
+    processed_filepath = str(Path(input_filepath).parent / processed_filename)
+    return processed_filepath
+
+
+def process_video_with_moviepy(
+    input_filepath: str, audio_input: str, processed_filepath: str
+) -> None:
     video_clip = VideoFileClip(input_filepath)
     audio_clip = AudioFileClip(audio_input)
     final_clip = video_clip.set_audio(audio_clip)
-    processed_filename = Path(input_filepath).name[len(PREFIX) :]
-    processed_filepath = str(Path(input_filepath).parent / processed_filename)
     final_clip.write_videofile(
         processed_filepath, fps=FPS, codec="libx264", audio_codec="aac"
     )
-    return processed_filepath
+
+
+def process_video_with_ffmpeg(
+    video_filename: str, audio_filename: str, output_filename: str
+) -> None:
+    """Combine video and audio using ffmpeg-python, saving to output_filename."""
+    (
+        ffmpeg.input(video_filename)
+        .output(
+            ffmpeg.input(audio_filename),
+            output_filename,
+            vcodec="copy",
+            acodec="aac",
+            strict="experimental",
+        )
+        .run(overwrite_output=True)
+    )
 
 
 def parse_args(args: list) -> argparse.Namespace:
@@ -185,7 +208,8 @@ def main(args: list) -> None:
         _logger.error("Video capture failed. Exiting...")
         return
     _logger.info("Video capture complete. Processing video with moviepy...")
-    processed_filepath = process_video_with_moviepy(video_output, audio_output)
+    processed_filepath = generate_final_filename(video_output)
+    process_video_with_moviepy(video_output, audio_output, processed_filepath)
     _logger.info("Video processing complete. Cleaning up temporary files...")
     # Cleanup temporary files
     if os.path.exists(video_output):
