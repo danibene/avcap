@@ -49,8 +49,8 @@ def generate_filename(base_name: Optional[str] = None) -> str:
     return filename
 
 
-def capture_video(duration: int, output_file: str) -> Tuple[str, str]:
-    cap = cv2.VideoCapture(0)  # 0 is usually the default webcam
+def capture_video(duration: int, output_file: str, camera_id: int = 0) -> Tuple[str, str]:
+    cap = cv2.VideoCapture(camera_id)  # 0 is usually the default webcam
     if not cap.isOpened():
         _logger.error("Could not open video device")
         return "", ""
@@ -159,6 +159,22 @@ def parse_args(args: list) -> argparse.Namespace:
         default="",
     )
     parser.add_argument(
+        "-c",
+        "--camera",
+        dest="camera_id",
+        help="Camera ID",
+        type=int,
+        default=0,
+    )
+    parser.add_argument(
+        "-k",
+        "--keep-originals",
+        dest="keep_originals",
+        help="Whether to keep original audio and video",
+        type=bool,
+        default=True,
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         dest="loglevel",
@@ -190,7 +206,7 @@ def main(args: list) -> None:
     setup_logging(parsed_args.loglevel)
     _logger.debug("Starting video capture...")
     video_output, audio_output = capture_video(
-        parsed_args.duration, parsed_args.output_file
+        parsed_args.duration, parsed_args.output_file, parsed_args.camera_id
     )
     if not video_output or not audio_output:
         _logger.error("Video capture failed. Exiting...")
@@ -199,11 +215,12 @@ def main(args: list) -> None:
     processed_filepath = generate_final_filename(video_output)
     process_video_with_ffmpeg(video_output, audio_output, processed_filepath)
     _logger.info("Video processing complete. Cleaning up temporary files...")
-    # Cleanup temporary files
-    if os.path.exists(video_output):
-        os.remove(video_output)
-    if os.path.exists(audio_output):
-        os.remove(audio_output)
+    if parsed_args.keep_originals:
+        # Cleanup temporary files
+        if os.path.exists(video_output):
+            os.remove(video_output)
+        if os.path.exists(audio_output):
+            os.remove(audio_output)
     _logger.info(f"Final video is available at {processed_filepath}")
 
 
