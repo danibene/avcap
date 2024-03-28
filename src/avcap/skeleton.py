@@ -215,7 +215,7 @@ def main(args: list) -> None:
     processed_filepath = generate_final_filename(video_output)
     process_video_with_ffmpeg(video_output, audio_output, processed_filepath)
     _logger.info("Video processing complete. Cleaning up temporary files...")
-    if parsed_args.keep_originals:
+    if not parsed_args.keep_originals:
         # Cleanup temporary files
         if os.path.exists(video_output):
             os.remove(video_output)
