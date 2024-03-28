@@ -11,7 +11,6 @@ import cv2
 import ffmpeg
 import numpy as np
 import sounddevice as sd
-from moviepy.editor import AudioFileClip, VideoFileClip
 
 from avcap import __version__
 
@@ -118,17 +117,6 @@ def generate_final_filename(input_filepath: str) -> str:
     return processed_filepath
 
 
-def process_video_with_moviepy(
-    input_filepath: str, audio_input: str, processed_filepath: str
-) -> None:
-    video_clip = VideoFileClip(input_filepath)
-    audio_clip = AudioFileClip(audio_input)
-    final_clip = video_clip.set_audio(audio_clip)
-    final_clip.write_videofile(
-        processed_filepath, fps=FPS, codec="libx264", audio_codec="aac"
-    )
-
-
 def process_video_with_ffmpeg(
     video_filename: str, audio_filename: str, output_filename: str
 ) -> None:
@@ -209,7 +197,7 @@ def main(args: list) -> None:
         return
     _logger.info("Video capture complete. Processing video with moviepy...")
     processed_filepath = generate_final_filename(video_output)
-    process_video_with_moviepy(video_output, audio_output, processed_filepath)
+    process_video_with_ffmpeg(video_output, audio_output, processed_filepath)
     _logger.info("Video processing complete. Cleaning up temporary files...")
     # Cleanup temporary files
     if os.path.exists(video_output):
