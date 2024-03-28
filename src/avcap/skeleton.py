@@ -49,7 +49,9 @@ def generate_filename(base_name: Optional[str] = None) -> str:
     return filename
 
 
-def capture_video(duration: int, output_file: str, camera_id: int = 0) -> Tuple[str, str]:
+def capture_video(
+    duration: int, output_file: str, camera_id: int = 0
+) -> Tuple[str, str]:
     cap = cv2.VideoCapture(camera_id)  # 0 is usually the default webcam
     if not cap.isOpened():
         _logger.error("Could not open video device")
